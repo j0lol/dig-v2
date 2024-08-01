@@ -25,9 +25,7 @@ DEALINGS IN THE SOFTWARE.
 use macroquad::math::{vec2, Rect, Vec2};
 
 use std::collections::HashSet;
-use macroquad::prelude::{ivec2, uvec2};
 use crate::grid::Grid;
-use crate::{VIRTUAL_HEIGHT, VIRTUAL_WIDTH};
 use crate::tile_map::ChunkMap;
 
 #[derive(Debug, PartialEq, Clone, Copy)]

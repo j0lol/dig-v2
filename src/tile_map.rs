@@ -56,16 +56,6 @@ impl Chunk {
     }
 }
 
-// impl Default for Chunk {
-//     fn default() -> Self {
-//         Chunk(Grid::new_filled(
-//             (VIRTUAL_WIDTH / TILE_SIZE) as usize,
-//             (VIRTUAL_HEIGHT / TILE_SIZE) as usize,
-//             |point| if point.y > 7 { Tile::Solid } else { Tile::Empty },
-//             Tile::Empty
-//         ))
-//     }
-// }
 #[derive(Clone, Debug)]
 pub struct ChunkMap {
     store: HashMap<ChunkIndex, Chunk>,
@@ -291,10 +281,6 @@ fn clamp_vec_in_rect(rect: Rect, vec: Vec2) -> Vec2 {
         ret_vec.y = rect.bottom();
     }
     ret_vec
-}
-
-fn rect_in_rect(r1: Rect, r2: Rect) -> bool {
-    r1.overlaps(&r2)
 }
 
 pub fn global_coordinate_to_chunk(position: Vec2) -> ChunkIndex {
