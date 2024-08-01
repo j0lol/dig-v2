@@ -1,4 +1,3 @@
-use std::f32::consts::E;
 
 use macroquad::prelude::*;
 use crate::physics::{Actor, World};
@@ -148,6 +147,6 @@ impl Player {
     }
 }
 
-pub fn jetpack_decay_curve(time_left: f32) -> f32 {
+pub fn jetpack_decay_curve(_time_left: f32) -> f32 {
     JETPACK_IMPULSE * get_frame_time()
 }

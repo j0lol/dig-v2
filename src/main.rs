@@ -1,13 +1,10 @@
-use std::f32::consts::E;
 
 use macroquad::prelude::*;
-use macroquad::telemetry::capture_frame;
-use player::{jetpack_decay_curve, Jumping, JETPACK_IMPULSE, JETPACK_TIME};
+use player::{jetpack_decay_curve, Jumping};
 use tile_map::global_coordinate_to_chunk;
 
 use crate::physics::*;
 use crate::player::Player;
-use crate::tile_map::wrap_around_vec_in_rect;
 
 pub mod player;
 pub mod grid;
@@ -141,7 +138,7 @@ fn draw_cursor(mouse_pos: Vec2) {
     draw_triangle(mouse_pos, mouse_pos + vec2(0., 3.), mouse_pos + vec2(3., 3.), RED);
 }
 
-fn f3(world: &mut World, player: &mut Player, camera: &Camera2D, mouse_position: Vec2, font: &Font) {
+fn f3(world: &mut World, player: &mut Player, _camera: &Camera2D, mouse_position: Vec2, font: &Font) {
    
     // left 
     draw_f3_text(
@@ -252,6 +249,8 @@ fn f3(world: &mut World, player: &mut Player, camera: &Camera2D, mouse_position:
 
 #[test]
 fn wraparound() {
+    use crate::tile_map::wrap_around_vec_in_rect;
+    
     let rect = Rect::new(0., 0., 10., 10.);
     
     assert_eq!(wrap_around_vec_in_rect(rect, vec2(0., 0.)), vec2(0., 0.));

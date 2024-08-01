@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::fmt::format;
 use itertools::Itertools;
 use macroquad::prelude::*;
 use crate::grid::Grid;
-use crate::physics::{Tile, World};
+use crate::physics::Tile;
 use crate::{TILE_SIZE, VIRTUAL_HEIGHT, VIRTUAL_WIDTH};
-use crate::player::Player;
 
 #[derive(Clone, Debug)]
 pub struct Chunk(pub Grid<Tile>);
@@ -263,24 +261,6 @@ pub struct NineOf<T> {
 
 pub fn wrap_around_vec_in_rect(rect: Rect, vec: Vec2) -> Vec2 {
     vec.rem_euclid(rect.size())
-}
-
-
-fn clamp_vec_in_rect(rect: Rect, vec: Vec2) -> Vec2 {
-    let mut ret_vec = vec;
-    if vec.x < rect.left() {
-        ret_vec.x = rect.left();
-    }
-    if vec.x >= rect.right() {
-        ret_vec.x = rect.right();
-    }
-    if vec.y < rect.top() {
-        ret_vec.y = rect.top();
-    }
-    if vec.y >= rect.bottom() {
-        ret_vec.y = rect.bottom();
-    }
-    ret_vec
 }
 
 pub fn global_coordinate_to_chunk(position: Vec2) -> ChunkIndex {

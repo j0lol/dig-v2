@@ -25,7 +25,6 @@ DEALINGS IN THE SOFTWARE.
 use macroquad::math::{vec2, Rect, Vec2};
 
 use std::collections::HashSet;
-use crate::grid::Grid;
 use crate::tile_map::ChunkMap;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -47,14 +46,6 @@ impl Tile {
         }
     }
 }
-#[derive(Debug, Clone)]
-pub struct StaticTiledLayer {
-    pub static_colliders: Grid<Tile>,
-    tile_width: f32,
-    tile_height: f32,
-    pub(crate) width: usize,
-    tag: u8,
-}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Actor(usize);
@@ -65,7 +56,7 @@ pub struct Solid(usize);
 
 
 #[derive(Clone, Debug)]
-struct Collider {
+pub struct Collider {
     collidable: bool,
     squished: bool,
     pos: Vec2,
@@ -345,7 +336,7 @@ impl World {
         self.tag_at(pos, 1)
     }
 
-    pub fn tag_at(&self, pos: Vec2, tag: u8) -> bool {
+    pub fn tag_at(&self, _pos: Vec2, _tag: u8) -> bool {
         true
         // FIXME
         // for StaticTiledLayer {
@@ -393,7 +384,7 @@ impl World {
             .map_or(Tile::Empty, |_| Tile::Collider)
     }
 
-    pub fn collide_tag(&mut self, tag: u8, pos: Vec2, width: i32, height: i32) -> Tile {
+    pub fn collide_tag(&mut self, _tag: u8, pos: Vec2, width: i32, height: i32) -> Tile {
         self.map.collide(Rect::new(pos.x, pos.y, width as f32, height as f32))
         // {
         //     let map = &self.map;
