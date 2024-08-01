@@ -24,8 +24,8 @@ dependencies = [
 name = "another-game"
 version = "0.1.0"
 dependencies = [
+ "itertools",
  "macroquad",
- "macroquad-platformer",
  "rayon",
 ]
 
@@ -169,6 +169,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -188,15 +197,6 @@ dependencies = [
  "miniquad",
  "quad-rand",
  "slotmap",
-]
-
-[[package]]
-name = "macroquad-platformer"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96830174cdb51092a0726fabe07efb0d20eaeb9f15fd4c64ffcb8d49a7313aa8"
-dependencies = [
- "macroquad",
 ]
 
 [[package]]

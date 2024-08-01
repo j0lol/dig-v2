@@ -25,7 +25,10 @@ DEALINGS IN THE SOFTWARE.
 use macroquad::math::{vec2, Rect, Vec2};
 
 use std::collections::HashSet;
+use macroquad::prelude::{ivec2, uvec2};
 use crate::grid::Grid;
+use crate::{VIRTUAL_HEIGHT, VIRTUAL_WIDTH};
+use crate::tile_map::ChunkMap;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Tile {
@@ -36,7 +39,7 @@ pub enum Tile {
 }
 
 impl Tile {
-    fn or(self, other: Tile) -> Tile {
+    pub(crate) fn or(self, other: Tile) -> Tile {
         match (self, other) {
             (Tile::Empty, Tile::Empty) => Tile::Empty,
             (Tile::JumpThrough, Tile::JumpThrough) => Tile::JumpThrough,
@@ -48,19 +51,20 @@ impl Tile {
 }
 #[derive(Debug, Clone)]
 pub struct StaticTiledLayer {
-    pub(crate) static_colliders: Grid<Tile>,
+    pub static_colliders: Grid<Tile>,
     tile_width: f32,
     tile_height: f32,
     pub(crate) width: usize,
     tag: u8,
 }
 
-#[derive(Debug, Clone)]
-pub struct World {
-    pub static_tiled_layers: Vec<StaticTiledLayer>,
-    solids: Vec<(Solid, Collider)>,
-    actors: Vec<(Actor, Collider)>,
-}
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct Actor(usize);
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct Solid(usize);
+
+
 
 #[derive(Clone, Debug)]
 struct Collider {
@@ -87,37 +91,40 @@ impl Collider {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub struct Actor(usize);
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub struct Solid(usize);
+#[derive(Debug, Clone)]
+pub struct World {
+    pub map: ChunkMap,
+    pub solids: Vec<(Solid, Collider)>,
+    pub actors: Vec<(Actor, Collider)>,
+}
 
 impl World {
     pub fn new() -> World {
         World {
-            static_tiled_layers: vec![],
+            map: ChunkMap::default(),
             actors: vec![],
             solids: vec![],
         }
     }
+    
 
-    pub fn add_static_tiled_layer(
-        &mut self,
-        static_colliders: Grid<Tile>,
-        tile_width: f32,
-        tile_height: f32,
-        width: usize,
-        tag: u8,
-    ) {
-        self.static_tiled_layers.push(StaticTiledLayer {
-            static_colliders,
-            tile_width,
-            tile_height,
-            width,
-            tag,
-        });
-    }
+    // pub fn add_static_tiled_layer(
+    //     &mut self,
+    //     static_colliders: Grid<Tile>,
+    //     tile_width: f32,
+    //     tile_height: f32,
+    //     width: usize,
+    //     tag: u8,
+    // ) {
+    //     self.map.push(StaticTiledLayer {
+    //         static_colliders,
+    //         tile_width,
+    //         tile_height,
+    //         width,
+    //         tag,
+    //     });
+    // }
+
     pub fn add_actor(&mut self, pos: Vec2, width: i32, height: i32) -> Actor {
         let actor = Actor(self.actors.len());
 
@@ -341,32 +348,34 @@ impl World {
     }
 
     pub fn tag_at(&self, pos: Vec2, tag: u8) -> bool {
-        for StaticTiledLayer {
-            tile_width,
-            tile_height,
-            width,
-            static_colliders,
-            tag: layer_tag,
-        } in &self.static_tiled_layers
-        {
-            let y = (pos.y / tile_width) as i32;
-            let x = (pos.x / tile_height) as i32;
-            let ix = y * (*width as i32) + x;
-
-            if ix >= 0
-                && ix < static_colliders.array.len() as i32
-                && static_colliders.array[ix as usize] != Tile::Empty
-            {
-                return *layer_tag == tag;
-            }
-        }
-
-        self.solids
-            .iter()
-            .any(|solid| solid.1.collidable && solid.1.rect().contains(pos))
+        true
+        // FIXME
+        // for StaticTiledLayer {
+        //     tile_width,
+        //     tile_height,
+        //     width,
+        //     static_colliders,
+        //     tag: layer_tag,
+        // } in &self.static_tiled_layers
+        // {
+        //     let y = (pos.y / tile_width) as i32;
+        //     let x = (pos.x / tile_height) as i32;
+        //     let ix = y * (width as i32) + x;
+        // 
+        //     if ix >= 0
+        //         && ix < static_colliders.array.len() as i32
+        //         && static_colliders.array[ix as usize] != Tile::Empty
+        //     {
+        //         return *layer_tag == tag;
+        //     }
+        // }
+        // 
+        // self.solids
+        //     .iter()
+        //     .any(|solid| solid.1.collidable && solid.1.rect().contains(pos))
     }
 
-    pub fn collide_solids(&self, pos: Vec2, width: i32, height: i32) -> Tile {
+    pub fn collide_solids(&mut self, pos: Vec2, width: i32, height: i32) -> Tile {
         let tile = self.collide_tag(1, pos, width, height);
         if tile != Tile::Empty {
             return tile;
@@ -386,73 +395,69 @@ impl World {
             .map_or(Tile::Empty, |_| Tile::Collider)
     }
 
-    pub fn collide_tag(&self, tag: u8, pos: Vec2, width: i32, height: i32) -> Tile {
-        for StaticTiledLayer {
-            tile_width,
-            tile_height,
-            width: layer_width,
-            static_colliders,
-            tag: layer_tag,
-        } in &self.static_tiled_layers
-        {
-            let layer_height = static_colliders.array.len() / layer_width + 1;
-            let check = |pos: Vec2| {
-                let y = (pos.y / tile_width) as i32;
-                let x = (pos.x / tile_height) as i32;
-                let ix = y * (*layer_width as i32) + x;
-                if y >= 0
-                    && y < layer_height as i32
-                    && x >= 0
-                    && x < *layer_width as i32
-                    && ix >= 0
-                    && ix < static_colliders.array.len() as i32
-                    && *layer_tag == tag
-                    && static_colliders.array[ix as usize] != Tile::Empty
-                {
-                    return static_colliders.array[ix as usize];
-                }
-                Tile::Empty
-            };
-
-            let tile = check(pos)
-                .or(check(pos + vec2(width as f32 - 1.0, 0.0)))
-                .or(check(pos + vec2(width as f32 - 1.0, height as f32 - 1.0)))
-                .or(check(pos + vec2(0.0, height as f32 - 1.0)));
-
-            if tile != Tile::Empty {
-                return tile;
-            }
-
-            if width > *tile_width as i32 {
-                let mut x = pos.x;
-
-                while {
-                    x += tile_width;
-                    x < pos.x + width as f32 - 1.
-                } {
-                    let tile =
-                        check(vec2(x, pos.y)).or(check(vec2(x, pos.y + height as f32 - 1.0)));
-                    if tile != Tile::Empty {
-                        return tile;
-                    }
-                }
-            }
-
-            if height > *tile_height as i32 {
-                let mut y = pos.y;
-
-                while {
-                    y += tile_height;
-                    y < pos.y + height as f32 - 1.
-                } {
-                    let tile = check(vec2(pos.x, y)).or(check(vec2(pos.x + width as f32 - 1., y)));
-                    if tile != Tile::Empty {
-                        return tile;
-                    }
-                }
-            }
-        }
-        Tile::Empty
+    pub fn collide_tag(&mut self, tag: u8, pos: Vec2, width: i32, height: i32) -> Tile {
+        self.map.collide(Rect::new(pos.x, pos.y, width as f32, height as f32))
+        // {
+        //     let map = &self.map;
+        //     let layer_width = map.chunk_size.x;
+        //     let layer_height = map.chunk_size.y;
+        //     let check = |pos: Vec2| {
+        //         let y = (pos.y / map.tile_size.x as f32) as i32;
+        //         let x = (pos.x / map.tile_size.y as f32) as i32;
+        //         let ix = y * (layer_width as i32) + x;
+        //         if y >= 0
+        //             && y < layer_height as i32
+        //             && x >= 0
+        //             && x < layer_width as i32
+        //             && ix >= 0
+        //             && ix < (map.chunk_size.x * map.chunk_size.y) as i32
+        //             && map.tag == tag
+        //             && map.focused().0[uvec2(x as u32, y as u32)] != Tile::Empty
+        //         {
+        //             return map.focused().0[uvec2(x as u32, y as u32)];
+        //         }
+        //         Tile::Empty
+        //     };
+        // 
+        //     let tile = check(pos)
+        //         .or(check(pos + vec2(width as f32 - 1.0, 0.0)))
+        //         .or(check(pos + vec2(width as f32 - 1.0, height as f32 - 1.0)))
+        //         .or(check(pos + vec2(0.0, height as f32 - 1.0)));
+        // 
+        //     if tile != Tile::Empty {
+        //         return tile;
+        //     }
+        // 
+        //     if width > map.tile_size.x as i32 {
+        //         let mut x = pos.x;
+        // 
+        //         while {
+        //             x += map.tile_size.x as f32;
+        //             x < pos.x + width as f32 - 1.
+        //         } {
+        //             let tile =
+        //                 check(vec2(x, pos.y)).or(check(vec2(x, pos.y + height as f32 - 1.0)));
+        //             if tile != Tile::Empty {
+        //                 return tile;
+        //             }
+        //         }
+        //     }
+        // 
+        //     if height > map.tile_size.y as i32 {
+        //         let mut y = pos.y;
+        // 
+        //         while {
+        //             y += map.tile_size.y as f32;
+        //             y < pos.y + height as f32 - 1.
+        //         } {
+        //             let tile = check(vec2(pos.x, y)).or(check(vec2(pos.x + width as f32 - 1., y)));
+        //             if tile != Tile::Empty {
+        //                 return tile;
+        //             }
+        //         }
+        //     }
+        // }
+        // Tile::Empty
     }
 
     pub fn squished(&self, actor: Actor) -> bool {
@@ -467,11 +472,12 @@ impl World {
         self.solids[solid.0].1.pos
     }
 
-    pub fn collide_check(&self, collider: Actor, pos: Vec2) -> bool {
-        let collider = &self.actors[collider.0];
+    pub fn collide_check(&mut self, collider: Actor, pos: Vec2) -> bool {
+        let (_, collider) = self.actors[collider.0].clone();
 
-        let tile = self.collide_solids(pos, collider.1.width, collider.1.height);
-        if collider.1.descent {
+        let tile = self.collide_solids(pos, collider.width, collider.height);
+
+        if collider.descent {
             tile == Tile::Solid || tile == Tile::Collider
         } else {
             tile == Tile::Solid || tile == Tile::Collider || tile == Tile::JumpThrough
