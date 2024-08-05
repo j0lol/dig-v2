@@ -1,8 +1,9 @@
-
 use macroquad::prelude::*;
 use crate::physics::{Actor, World};
-use crate::{TILE_SIZE, VIRTUAL_HEIGHT, VIRTUAL_WIDTH};
-use crate::tile_map::global_coordinate_to_chunk;
+use crate::position::WorldPos;
+use crate::tile::TileId;
+use crate::ui::draw_from_tile_set;
+use crate::{TILE_SET, TILE_SIZE, VIRTUAL_HEIGHT, VIRTUAL_WIDTH};
 
 const MAX_SPEED: f32 = 300.0;
 const WALK_SPEED: f32 = 120.0;
@@ -37,10 +38,11 @@ pub struct Player {
     pub facing: Facing,
     pub size: Vec2,
     pub jumping: Jumping,
+    pub selected_item: u8,
+    pub inventory: Box<[TileId; 4]>
 }
 
 impl Player {
-
     pub fn new(world: &mut World) -> Player {
         let position = vec2(VIRTUAL_WIDTH/2., VIRTUAL_HEIGHT/2.);
 
@@ -50,13 +52,13 @@ impl Player {
             speed: vec2(0., 0.),
             facing: Facing::Forward,
             jumping: Jumping::Not,
+            selected_item: 0,
+            inventory: Box::new([TileId::Dirt, TileId::WoodPlanks, TileId::Dirt, TileId::WoodPlanks])
         }
     }
-    pub fn position(&self, world: &World) -> Vec2 {
-        world.actor_pos(self.collider)
-    }
-
     pub fn update(&mut self, world: &mut World) {
+        self.selected_item = self.selected_item.overflowing_add_signed((mouse_wheel().1 as i8).saturating_mul(64)).0;
+        
         if is_key_down(KeyCode::X) {
             world.set_actor_position(self.collider,  vec2(VIRTUAL_WIDTH/2., VIRTUAL_HEIGHT/2.));
         }
@@ -117,34 +119,30 @@ impl Player {
         world.move_v(self.collider, self.speed.y * get_frame_time());
         world.move_h(self.collider, self.speed.x * get_frame_time());
 
-        let chunk_in = global_coordinate_to_chunk(self.position(world));
+        let chunk_in = self.position(world).to_chunk();
         if world.map.focus != chunk_in {
             println!("CHUNK LOAD");
-            println!("{} -> {}", world.map.focus, chunk_in);
+            println!("{} -> {}", world.map.focus.0, chunk_in.0);
             world.map.focus = chunk_in;
         }
     }
 
-    pub fn draw(&self, world: &World, tile_set: &Texture2D) {
+    pub fn draw(&self, world: &World) {
         let position = self.position(world);
-
-        draw_texture_ex(
-            tile_set,
-            position.x - 2.0,
-            position.y - 1.0,
-            WHITE,
-            DrawTextureParams {
-            source: Some(
-                Rect::new(
-                    (3. + (self.facing as i32) as f32)*TILE_SIZE,
-                    1.*TILE_SIZE, TILE_SIZE, TILE_SIZE)),
-            ..Default::default()
-        });
+        draw_from_tile_set(11 + (self.facing as u32), position.0 + vec2(-2.0, -1.0));
+    }
+    
+    pub fn get_inventory_item(&self) -> TileId {
+        self.inventory[self.get_inventory_index()]
+    }
+    pub fn get_inventory_index(&self) -> usize {
+        (self.selected_item as usize / (u8::max_value() as f32 * 0.25) as usize).min(3)
+    }
+    
+    pub fn position(&self, world: &World) -> WorldPos {
+        WorldPos(world.actor_pos(self.collider))
     }
 
-    pub fn get_chunk(&self, world: &World) -> IVec2 {
-        (self.position(world) / vec2(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)).floor().as_ivec2()
-    }
 }
 
 pub fn jetpack_decay_curve(_time_left: f32) -> f32 {

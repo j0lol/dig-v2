@@ -22,40 +22,43 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use macroquad::math::{vec2, Rect, Vec2};
-
+use base64::{prelude::BASE64_STANDARD, Engine};
+use macroquad::math::{vec2, Vec2};
+use macroquad::math::Rect;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use crate::tile_map::ChunkMap;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Tile {
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+pub enum CollisionResult {
     Empty,
     Solid,
     JumpThrough,
     Collider,
 }
 
-impl Tile {
-    pub(crate) fn or(self, other: Tile) -> Tile {
+impl CollisionResult {
+    pub(crate) fn or(self, other: CollisionResult) -> CollisionResult {
+        use CollisionResult::*;
         match (self, other) {
-            (Tile::Empty, Tile::Empty) => Tile::Empty,
-            (Tile::JumpThrough, Tile::JumpThrough) => Tile::JumpThrough,
-            (Tile::JumpThrough, Tile::Empty) => Tile::JumpThrough,
-            (Tile::Empty, Tile::JumpThrough) => Tile::JumpThrough,
-            _ => Tile::Solid,
+            (Empty, Empty) => Empty,
+            (JumpThrough, JumpThrough) => JumpThrough,
+            (JumpThrough, Empty) => JumpThrough,
+            (Empty, JumpThrough) => JumpThrough,
+            _ => Solid,
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct Actor(usize);
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct Solid(usize);
 
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Collider {
     collidable: bool,
     squished: bool,
@@ -80,7 +83,7 @@ impl Collider {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct World {
     pub map: ChunkMap,
     pub solids: Vec<(Solid, Collider)>,
@@ -94,6 +97,33 @@ impl World {
             actors: vec![],
             solids: vec![],
         }
+    }
+    
+    pub fn save(&self) {
+        println!("Save");
+        let data = bincode::serialize(&self).expect("Serde Bincode failure");
+        let data = BASE64_STANDARD.encode(data);
+        let storage = &mut quad_storage::STORAGE.lock().expect("Storage lock fail");
+        storage.set("World", &data);
+        storage.set("foo", &BASE64_STANDARD.encode(b"bar"));
+    }
+    
+    pub fn load() -> Option<World> {
+        println!("Load");
+        let storage = &mut quad_storage::STORAGE.lock().expect("Storage lock fail");
+       
+        // if storage.get("foo").is_none() {
+        //     return None;
+        // }
+        
+        // assert_eq!("bar", String::from_utf8(BASE64_STANDARD.decode(storage.get("foo").unwrap()).unwrap()).unwrap());
+        
+        let data = storage.get("World")?;
+        let data = BASE64_STANDARD.decode(data).expect("Base64 Decode failure");
+        let data = &data[..];
+        let world: World = bincode::deserialize(data).unwrap();
+        
+        Some(world)
     }
     
 
@@ -120,7 +150,7 @@ impl World {
         let mut descent = false;
         let mut seen_wood = false;
         let tile = self.collide_solids(pos, width, height);
-        if tile == Tile::JumpThrough {
+        if tile == CollisionResult::JumpThrough {
             descent = true;
             seen_wood = true;
         }
@@ -179,6 +209,8 @@ impl World {
     }
 
     pub fn move_v(&mut self, actor: Actor, dy: f32) -> bool {
+        use CollisionResult::*;
+        
         let id = actor.0;
         let mut collider = self.actors[id].1.clone();
 
@@ -197,15 +229,15 @@ impl World {
                 );
 
                 // collider wants to go down and collided with jumpthrough tile
-                if tile == Tile::JumpThrough && collider.descent {
+                if tile == JumpThrough && collider.descent {
                     collider.seen_wood = true;
                 }
                 // collider wants to go up and encoutered jumpthrough obstace
-                if tile == Tile::JumpThrough && sign < 0 {
+                if tile == JumpThrough && sign < 0 {
                     collider.seen_wood = true;
                     collider.descent = true;
                 }
-                if tile == Tile::Empty || (tile == Tile::JumpThrough && collider.descent) {
+                if tile == Empty || (tile == JumpThrough && collider.descent) {
                     collider.pos.y += sign as f32;
                     move_ -= sign;
                 } else {
@@ -218,7 +250,7 @@ impl World {
 
         // Final check, if we are out of woods after the move - reset wood flags
         let tile = self.collide_solids(collider.pos, collider.width, collider.height);
-        if tile != Tile::JumpThrough {
+        if tile != JumpThrough {
             collider.seen_wood = false;
             collider.descent = false;
         }
@@ -228,6 +260,7 @@ impl World {
     }
 
     pub fn move_h(&mut self, actor: Actor, dx: f32) -> bool {
+        use CollisionResult::*;
         let id = actor.0;
         let mut collider = self.actors[id].1.clone();
         collider.x_remainder += dx;
@@ -243,11 +276,11 @@ impl World {
                     collider.width,
                     collider.height,
                 );
-                if tile == Tile::JumpThrough {
+                if tile == JumpThrough {
                     collider.descent = true;
                     collider.seen_wood = true;
                 }
-                if tile == Tile::Empty || tile == Tile::JumpThrough {
+                if tile == Empty || tile == JumpThrough {
                     collider.pos.x += sign as f32;
                     move_ -= sign;
                 } else {
@@ -364,9 +397,9 @@ impl World {
         //     .any(|solid| solid.1.collidable && solid.1.rect().contains(pos))
     }
 
-    pub fn collide_solids(&mut self, pos: Vec2, width: i32, height: i32) -> Tile {
+    pub fn collide_solids(&mut self, pos: Vec2, width: i32, height: i32) -> CollisionResult {
         let tile = self.collide_tag(1, pos, width, height);
-        if tile != Tile::Empty {
+        if tile != CollisionResult::Empty {
             return tile;
         }
 
@@ -381,72 +414,11 @@ impl World {
                     height as f32,
                 ))
             })
-            .map_or(Tile::Empty, |_| Tile::Collider)
+            .map_or(CollisionResult::Empty, |_| CollisionResult::Collider)
     }
 
-    pub fn collide_tag(&mut self, _tag: u8, pos: Vec2, width: i32, height: i32) -> Tile {
+    pub fn collide_tag(&mut self, _tag: u8, pos: Vec2, width: i32, height: i32) -> CollisionResult {
         self.map.collide(Rect::new(pos.x, pos.y, width as f32, height as f32))
-        // {
-        //     let map = &self.map;
-        //     let layer_width = map.chunk_size.x;
-        //     let layer_height = map.chunk_size.y;
-        //     let check = |pos: Vec2| {
-        //         let y = (pos.y / map.tile_size.x as f32) as i32;
-        //         let x = (pos.x / map.tile_size.y as f32) as i32;
-        //         let ix = y * (layer_width as i32) + x;
-        //         if y >= 0
-        //             && y < layer_height as i32
-        //             && x >= 0
-        //             && x < layer_width as i32
-        //             && ix >= 0
-        //             && ix < (map.chunk_size.x * map.chunk_size.y) as i32
-        //             && map.tag == tag
-        //             && map.focused().0[uvec2(x as u32, y as u32)] != Tile::Empty
-        //         {
-        //             return map.focused().0[uvec2(x as u32, y as u32)];
-        //         }
-        //         Tile::Empty
-        //     };
-        // 
-        //     let tile = check(pos)
-        //         .or(check(pos + vec2(width as f32 - 1.0, 0.0)))
-        //         .or(check(pos + vec2(width as f32 - 1.0, height as f32 - 1.0)))
-        //         .or(check(pos + vec2(0.0, height as f32 - 1.0)));
-        // 
-        //     if tile != Tile::Empty {
-        //         return tile;
-        //     }
-        // 
-        //     if width > map.tile_size.x as i32 {
-        //         let mut x = pos.x;
-        // 
-        //         while {
-        //             x += map.tile_size.x as f32;
-        //             x < pos.x + width as f32 - 1.
-        //         } {
-        //             let tile =
-        //                 check(vec2(x, pos.y)).or(check(vec2(x, pos.y + height as f32 - 1.0)));
-        //             if tile != Tile::Empty {
-        //                 return tile;
-        //             }
-        //         }
-        //     }
-        // 
-        //     if height > map.tile_size.y as i32 {
-        //         let mut y = pos.y;
-        // 
-        //         while {
-        //             y += map.tile_size.y as f32;
-        //             y < pos.y + height as f32 - 1.
-        //         } {
-        //             let tile = check(vec2(pos.x, y)).or(check(vec2(pos.x + width as f32 - 1., y)));
-        //             if tile != Tile::Empty {
-        //                 return tile;
-        //             }
-        //         }
-        //     }
-        // }
-        // Tile::Empty
     }
 
     pub fn squished(&self, actor: Actor) -> bool {
@@ -466,10 +438,27 @@ impl World {
 
         let tile = self.collide_solids(pos, collider.width, collider.height);
 
+        use CollisionResult::*;
         if collider.descent {
-            tile == Tile::Solid || tile == Tile::Collider
+            tile == Solid || tile == Collider
         } else {
-            tile == Tile::Solid || tile == Tile::Collider || tile == Tile::JumpThrough
+            tile == Solid || tile == Collider || tile == JumpThrough
         }
+    }
+}
+
+mod test {
+    use super::*;
+    
+    #[test]
+    fn store_world() -> Result<(), Box<dyn std::error::Error>> {
+        let world = World::new();
+        
+        let data = bincode::serialize(&world)?;
+        let data = BASE64_STANDARD.encode(data);
+        let data = BASE64_STANDARD.decode(data)?;
+        let _: World = bincode::deserialize(&data[..])?;
+        
+        Ok(())
     }
 }

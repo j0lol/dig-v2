@@ -1,15 +1,9 @@
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 use macroquad::prelude::*;
+use serde::{Deserialize, Serialize};
 
-/// A point used to index a 2D grid.
-#[derive(Clone, Copy)]
-pub struct Point {
-    pub x: usize,
-    pub y: usize,
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Grid<T> {
     pub array: Vec<T>,
     pub width: usize,

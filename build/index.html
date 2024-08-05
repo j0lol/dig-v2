@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>TITLE</title>
+    <style>
+        html,
+        body,
+        canvas {
+            margin: 0px;
+            padding: 0px;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: absolute;
+            background: black;
+            z-index: 0;
+        }
+	.popover {
+	    z-index: 10;
+	    position: absolute;
+	    background: #3e042d;
+	    color: white;
+	    padding: 1em;
+	    margin: 0.2em;
+	    font-family: sans-serif;
+	    font-size: 8pt;
+	}
+	.popover > button {
+	    font-size: 8pt;
+	}
+    </style>
+</head>
+
+<body>
+    <canvas id="glcanvas" tabindex='1'></canvas>
+    <!-- Minified and statically hosted version of https://github.com/not-fl3/macroquad/blob/master/js/mq_js_bundle.js -->
+    <script src="mq_js_bundle.js"></script>
+    <script src="sapp_jsutils.js"></script>
+    <script src="quad-storage.js"></script>
+    <script>load("another-game.wasm");</script> <!-- Your compiled wasm file -->
+    <script>
+	document.addEventListener("contextmenu", function (e){
+	    e.preventDefault();
+	}, false);
+
+	function show_controls() {
+		alert("W/S: left/right.\nSpace: jump.\nSpace x2: Fly for some time\nLeft click: remove block\nRight click: place block\nX: Go to spawn");
+	}
+
+	function go_away() {
+		document.querySelectorAll(".popover").forEach(el => el.remove());
+	}
+    </script>
+
+    <div class="popover">
+
+    <span> Game made in Macroquad (Rust), compiled to WASM. W.I.P, obviously. </span>
+    <br>
+    <button onclick="show_controls()">Controls</button>
+    <button onclick="go_away()">Go away</button>
+    </div>
+
+
+
+</body>
+
+</html>
