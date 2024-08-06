@@ -99,7 +99,7 @@ HTML=$(
 		</head>
 		<body style="margin: 0; padding: 0; height: 100vh; width: 100vw;">
 		    <canvas id="glcanvas" tabindex='1' hidden></canvas>
-		    <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
+		    <script src="mq_js_bundle.js"></script>
 			<script src="sapp_jsutils.js"></script>
 			<script src="quad-storage.js"></script>
 			
@@ -174,6 +174,7 @@ sed -i '' "s/const imports = __wbg_get_imports();/return __wbg_get_imports();/" 
 echo "$HTML" >dist/index.html
 
 pushd dist
+wget -O mq_js_bundle.js https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js
 wget -O sapp_jsutils.js https://raw.githubusercontent.com/not-fl3/sapp-jsutils/master/js/sapp_jsutils.js
 wget -O quad-storage.js https://raw.githubusercontent.com/optozorax/quad-storage/master/js/quad-storage.js
 popd
