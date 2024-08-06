@@ -1,5 +1,6 @@
 /target
-
+/dist
+/build
 .DS_Store
 *.wasm
 local.data

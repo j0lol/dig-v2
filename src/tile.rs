@@ -3,7 +3,7 @@ pub use tile_full::Tile as Tile;
 pub use tile_id::TileId as TileId;
 
 mod tile_full {
-    use crate::CollisionResult;
+    use crate::physics2::CollisionResult;
 
     #[derive(Default, Clone, Copy, PartialEq)]
     pub enum Breakable {

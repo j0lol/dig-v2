@@ -10,3 +10,4 @@ macroquad = { git = "https://github.com/not-fl3/macroquad", features = ["glam-se
 quad-storage = "0.1.3"
 serde = { version = "1.0.204", features = ["derive"] }
 bincode = "1.3.3"
+bevy_ecs = { version = "0.14.1", default-features = false}

@@ -1,26 +1,40 @@
+use crate::physics2::Collider;
 use std::f32::consts::PI;
-
-use macroquad::camera::Camera2D;
+use bevy_ecs::prelude::*;
 use macroquad::prelude::*;
+use crate::{draw_bordered_rect, DEFAULT_FONT, SAVE_TIMER, TILE_SET, TILE_SIZE, VIRTUAL_HEIGHT, VIRTUAL_WIDTH};
+use crate::entity::player::{JETPACK_TIME, Jumping, Player};
+use crate::position::{RectExtend, WorldPos};
 
-use crate::{draw_bordered_rect, World, IS_WASM, SAVE_TIMER, TILE_SET, TILE_SIZE, VIRTUAL_HEIGHT, VIRTUAL_WIDTH};
-use crate::player::{JETPACK_TIME, Jumping, Player};
-use crate::position::{RectExtend, ScreenPos, WorldPos};
+use super::camera::GameCamera;
+use super::player::PlayerTag;
+use super::tile_map::SaveTimer;
 
 const UI_WIDTH: f32 = 87.0;
 
-const COLOR_HIGHLIGHT: u32 = 0xf93f8d;
-const COLOR_BASE: u32 = 0x550b39;
-const COLOR_SURFACE: u32 = 0x6d1345;
-const COLOR_BORDER: u32 = 0x3e042d;
+pub const COLOR_HIGHLIGHT: u32 = 0xf93f8d;
+pub const COLOR_BASE: u32 = 0x550b39;
+pub const COLOR_SURFACE: u32 = 0x6d1345;
+pub const COLOR_BORDER: u32 = 0x3e042d;
 
-pub fn draw_ui(camera2d: &Camera2D, player: &Player, world: &World, font: &Font, save_timer: f32) {
+
+
+pub(super) fn init_ui(mut commands: Commands) {
+    commands.spawn(Ui);
+}
+
+#[derive(Component, Default)]
+pub struct Ui;
+
+pub(super) fn draw_ui(
+    mut v_camera: Query<&GameCamera>, 
+    mut v_player: Query<(&Player, &Collider), With<PlayerTag>>,
+    save_timer: Res<SaveTimer>
+) {
+    let camera2d = &v_camera.get_single_mut().unwrap().0;
+    let (player, collider) = v_player.get_single_mut().unwrap();
     
-    let tile_set = TILE_SET.get().unwrap();
-    
-    if let Some(pos) = ScreenPos::mouse() {
-        draw_cursor(pos.to_world(camera2d), &tile_set);
-    }
+    let font = &*DEFAULT_FONT;
     
     let margin = 2.0;
 
@@ -65,7 +79,7 @@ pub fn draw_ui(camera2d: &Camera2D, player: &Player, world: &World, font: &Font,
         )
     }
     
-    let player_position = player.position(&world).to_tile().0;
+    let player_position = WorldPos(collider.pos).to_tile().0;
     
     draw_text_ex(
         &format!("[{:.1}, {:.1}]", player_position.x, player_position.y), 
@@ -78,9 +92,9 @@ pub fn draw_ui(camera2d: &Camera2D, player: &Player, world: &World, font: &Font,
         ..Default::default()
     });
     
-    if (SAVE_TIMER - 2.0..SAVE_TIMER).contains(&save_timer) {
+    if (SAVE_TIMER - 2.0..SAVE_TIMER).contains(&save_timer.0) {
         let mut color = Color::from_hex(COLOR_HIGHLIGHT);
-        color.a = ease_out(SAVE_TIMER - save_timer, 2.0);
+        color.a = ease_out(SAVE_TIMER - save_timer.0, 2.0);
         draw_text_ex(
             "Saved.", 
             base_ui_rect.right() - 32.0, 
@@ -128,60 +142,16 @@ fn draw_jump_velocity_bar(base_ui_rect: Rect, margin: f32, hotbar_height: f32, p
     }
 }
 
-fn draw_cursor(mouse_pos: WorldPos, tile_set: &Texture2D) {
-    if IS_WASM {
-        draw_texture_ex(
-            &tile_set,
-            mouse_pos.0.x.floor(),
-            mouse_pos.0.y.floor(),
-            WHITE,
-            DrawTextureParams {
-                source: Some(
-                    Rect::new(
-                        5.*TILE_SIZE,
-                        0.*TILE_SIZE, TILE_SIZE, TILE_SIZE)),
-                ..Default::default()
-            });
-    }
-    
-    let tile_pos = mouse_pos.snap().0;
-    
-    draw_line(
-        tile_pos.x  + 1.,
-        tile_pos.y + TILE_SIZE,
-        tile_pos.x + 1. + TILE_SIZE,
-        tile_pos.y + TILE_SIZE,
-        1.,
-        Color::from_hex(COLOR_BORDER),
-    );
-    draw_line(
-        tile_pos.x + TILE_SIZE,
-        tile_pos.y + 1.,
-        tile_pos.x + TILE_SIZE,
-        tile_pos.y + 1. + TILE_SIZE,
-        2.,
-        Color::from_hex(COLOR_BORDER),
-    );
-    draw_rectangle_lines(tile_pos.x, tile_pos.y, TILE_SIZE, TILE_SIZE, 2., Color::from_hex(COLOR_HIGHLIGHT));
-
-    // draw_triangle(mouse_pos, mouse_pos + vec2(0., 3.), mouse_pos + vec2(3., 3.), RED);
-}
-
-
-
 
 fn ease_out(x: f32, t: f32) -> f32 {
-    
     let n = (1.0 / t) * x;
-    
-    let ret = ((PI*n).cos() + 1.0) / 2.0;
-    ret
+    ((PI*n).cos() + 1.0) / 2.0
 }
 
 
 pub fn draw_from_tile_set(tile_index: u32, position: Vec2) {
     
-    let tile_set = TILE_SET.get().unwrap();
+    let tile_set = &*TILE_SET;
     let tileset_width = tile_set.width() / TILE_SIZE;
     
     let sprite_rect =  Rect::from_vecs(

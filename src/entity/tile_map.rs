@@ -1,49 +1,64 @@
 use std::collections::HashMap;
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine as _;
+use bevy_ecs::prelude::*;
 use itertools::Itertools;
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 use crate::grid::Grid;
-use crate::player::Player;
+use crate::entity::player::Player;
+use crate::physics2::CollisionResult;
 use crate::position::{ChunkPos, RectExtend, ScreenPos, WorldPos};
 use crate::tile::TileId;
-use crate::ui::draw_from_tile_set;
-use crate::{CollisionResult, TILE_SET, TILE_SIZE};
+use crate::entity::ui::draw_from_tile_set;
+use crate::{SAVE_TIMER, TILE_SIZE};
+
+pub(super) fn init_map(mut commands: Commands) {
+    commands.insert_resource(SaveTimer(SAVE_TIMER))
+}
+
+pub(super) fn timed_save(mut timer: ResMut<SaveTimer>, mut map: Query<&mut ChunkMap>) {
+    let map = map.get_single_mut().unwrap();
+    
+    if timer.0 < 0.0 {
+        map.save();
+        timer.0 = SAVE_TIMER;
+    } else {
+        timer.0 -= get_frame_time()
+    }
+}
+
+pub(super) fn draw_map(mut map: Query<&mut ChunkMap>) {
+    let mut map = map.single_mut();
+    let map = map.as_mut();
+    
+    for pos in [-1, -1, 0, 0, 1, 1].into_iter().permutations(2).unique() {
+        // let mut chunk_map = chunk_map.clone();
+        let pos = ivec2(pos[0] + map.focus.0.x, pos[1] + map.focus.0.y);
+        let chunk = map.get(ChunkPos(pos));
+
+        chunk.draw(ScreenPos::screen_rect().size() * pos.as_vec2());
+    }
+}
+
+
+#[derive(Resource)]
+pub struct SaveTimer(pub f32);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Chunk(pub Grid<TileId>);
 
+static SAVE_KEY: &str = "ChunkMap";
+
 impl Chunk {
     pub fn draw(&self, offset: Vec2) {
-        // let tile_set = TILE_SET.get().unwrap();
         self.0.for_each_immut(|point, tile| {
             if let Some(tile_index) = tile.val().sprite {
                 draw_from_tile_set(tile_index, point.as_vec2() * 16. + offset);
-                
-                
-                // let tileset_width = tile_set.width() / TILE_SIZE;
-                
-                // let sprite_rect =  Rect::from_vecs(
-                //     vec2(
-                //         (tile_index as f32 % tileset_width).floor() * TILE_SIZE,
-                //         (tile_index as f32 / tileset_width).floor() * TILE_SIZE,
-                //     ), Vec2::splat(TILE_SIZE));
-                
-                
-                // draw_texture_ex(
-                //     tile_set,
-                //     point.x as f32 * 16. + offset.x,
-                //     point.y as f32 * 16. + offset.y,
-                //     WHITE,
-                //     DrawTextureParams {
-                //         source: Some(sprite_rect),
-                //         ..Default::default()
-                //     }
-                // );
             }
         });
     }
     pub fn dbg_draw(&self, offset: Vec2) {
-
         self.0.for_each_immut(|point, tile| {
             let tile = tile.val().collision_result();
             
@@ -59,7 +74,7 @@ impl Chunk {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct ChunkMap {
     store: HashMap<ChunkPos, Chunk>,
     pub focus: ChunkPos,
@@ -69,32 +84,6 @@ pub struct ChunkMap {
 }
 
 impl ChunkMap {
-    pub(crate) fn update(&mut self, rect: Rect, world_mouse_pos: Option<WorldPos>, player: &Player) {
-        use MouseButton::*;
-        use TileId::*;
-        if is_mouse_button_down(Left) ^ is_mouse_button_down(Right) {
-            let tile = if is_mouse_button_down(Left) {
-                Air
-            } else {
-                player.get_inventory_item()
-            };
-            if let Some(world_mouse_pos) = world_mouse_pos {
-                self.place_tile(rect, world_mouse_pos, tile);
-            }
-        }
-    }
-    
-
-    pub(crate) fn draw(&mut self, virtual_screen: Rect) {
-        for pos in [-1, -1, 0, 0, 1, 1].into_iter().permutations(2).unique() {
-            // let mut chunk_map = chunk_map.clone();
-            let pos = ivec2(pos[0] + self.focus.0.x, pos[1] + self.focus.0.y);
-            let chunk = self.get(ChunkPos(pos));
-
-            chunk.draw(virtual_screen.size() * pos.as_vec2());
-        }
-    }
-    
     pub fn get(&mut self, chunk_index: ChunkPos) -> &Chunk {
        self.get_mut(chunk_index)
     }
@@ -131,7 +120,7 @@ impl ChunkMap {
         })
     }
 
-    fn place_tile(&mut self, rect: Rect, pos: WorldPos, tile: TileId) {
+    pub fn place_tile(&mut self, rect: Rect, pos: WorldPos, tile: TileId) {
         
         let tile_rect = Rect::from_vecs(pos.snap().0, Vec2::splat(16.0));
         
@@ -169,6 +158,24 @@ impl ChunkMap {
             chunk_size,
             tag: 0
         }
+    }
+    
+    pub fn save(&self) {
+        println!("Save");
+        let data = bincode::serialize(&self).expect("Serde Bincode failure");
+        let data = BASE64_STANDARD.encode(data);
+        let storage = &mut quad_storage::STORAGE.lock().expect("Storage lock fail");
+        storage.set(SAVE_KEY, &data);
+    }
+    
+    pub fn load() -> Option<ChunkMap> {
+        println!("Load");
+        let storage = &mut quad_storage::STORAGE.lock().expect("Storage lock fail");
+        
+        let data = BASE64_STANDARD.decode(storage.get(SAVE_KEY)?).ok()?;
+        let world: ChunkMap = bincode::deserialize(&data[..]).ok()?;
+        
+        Some(world)
     }
     
     pub fn focused(&mut self) -> &Chunk {

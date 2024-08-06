@@ -27,28 +27,9 @@ use macroquad::math::{vec2, Vec2};
 use macroquad::math::Rect;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use crate::tile_map::ChunkMap;
+use crate::entity::tile_map::ChunkMap;
 
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-pub enum CollisionResult {
-    Empty,
-    Solid,
-    JumpThrough,
-    Collider,
-}
 
-impl CollisionResult {
-    pub(crate) fn or(self, other: CollisionResult) -> CollisionResult {
-        use CollisionResult::*;
-        match (self, other) {
-            (Empty, Empty) => Empty,
-            (JumpThrough, JumpThrough) => JumpThrough,
-            (JumpThrough, Empty) => JumpThrough,
-            (Empty, JumpThrough) => JumpThrough,
-            _ => Solid,
-        }
-    }
-}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct Actor(usize);
@@ -448,6 +429,7 @@ impl World {
 }
 
 mod test {
+    
     use super::*;
     
     #[test]
