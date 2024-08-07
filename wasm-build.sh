@@ -63,7 +63,8 @@ set -- "${POSITIONAL[@]}"
 [ $# -ne 1 ] && die "too many arguments provided"
 
 PROJECT_NAME=$1
-
+HASH=$(git rev-parse HEAD)
+MANGLED_NAME=$PROJECT_NAME'-'$HASH
 HTML=$(
 	cat <<-END
 		<html lang="en">
@@ -104,7 +105,7 @@ HTML=$(
 			<script src="quad-storage.js"></script>
 			
 		    <script type="module">
-		        import init, { set_wasm } from "./${PROJECT_NAME}.js";
+		        import init, { set_wasm } from "./${MANGLED_NAME}.js";
 		        async function impl_run() {
 		            let wbg = await init();
 		            miniquad_add_plugin({
@@ -113,7 +114,7 @@ HTML=$(
 		                version: "0.0.1",
 		                name: "wbg",
 		            });
-		            load("./${PROJECT_NAME}_bg.wasm");
+		            load("./${MANGLED_NAME}_bg.wasm");
 		        }
 		        window.run = function() {
 		            document.getElementById("run-container").remove();
@@ -162,20 +163,21 @@ fi
 
 # Generate bindgen outputs
 mkdir -p dist
-wasm-bindgen $TARGET_DIR/"$PROJECT_NAME".wasm --out-dir dist --target web --no-typescript
+rm -f dist/$PROJECT_NAME*
+wasm-bindgen $TARGET_DIR/"$PROJECT_NAME".wasm --out-dir dist --target web --no-typescript --out-name "$MANGLED_NAME"
 
 # Shim to tie the thing together
 
 if [ "$(uname)" == "Darwin" ]; then
-    sed -i '' "s/import \* as __wbg_star0 from 'env';//" dist/"$PROJECT_NAME".js
-    sed -i '' "s/let wasm;/let wasm; export const set_wasm = (w) => wasm = w;/" dist/"$PROJECT_NAME".js
-    sed -i '' "s/imports\['env'\] = __wbg_star0;/return imports.wbg\;/" dist/"$PROJECT_NAME".js
-    sed -i '' "s/const imports = __wbg_get_imports();/return __wbg_get_imports();/" dist/"$PROJECT_NAME".js
+    sed -i '' "s/import \* as __wbg_star0 from 'env';//" dist/"$MANGLED_NAME".js
+    sed -i '' "s/let wasm;/let wasm; export const set_wasm = (w) => wasm = w;/" dist/"$MANGLED_NAME".js
+    sed -i '' "s/imports\['env'\] = __wbg_star0;/return imports.wbg\;/" dist/"$MANGLED_NAME".js
+    sed -i '' "s/const imports = __wbg_get_imports();/return __wbg_get_imports();/" dist/"$MANGLED_NAME".js
 else
-    sed -i "s/import \* as __wbg_star0 from 'env';//" dist/"$PROJECT_NAME".js
-    sed -i "s/let wasm;/let wasm; export const set_wasm = (w) => wasm = w;/" dist/"$PROJECT_NAME".js
-    sed -i "s/imports\['env'\] = __wbg_star0;/return imports.wbg\;/" dist/"$PROJECT_NAME".js
-    sed -i "s/const imports = __wbg_get_imports();/return __wbg_get_imports();/" dist/"$PROJECT_NAME".js
+    sed -i "s/import \* as __wbg_star0 from 'env';//" dist/"$MANGLED_NAME".js
+    sed -i "s/let wasm;/let wasm; export const set_wasm = (w) => wasm = w;/" dist/"$MANGLED_NAME".js
+    sed -i "s/imports\['env'\] = __wbg_star0;/return imports.wbg\;/" dist/"$MANGLED_NAME".js
+    sed -i "s/const imports = __wbg_get_imports();/return __wbg_get_imports();/" dist/"$MANGLED_NAME".js
 fi
 
 
