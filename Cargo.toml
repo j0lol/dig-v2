@@ -11,3 +11,5 @@ quad-storage = "0.1.3"
 serde = { version = "1.0.204", features = ["derive"] }
 bincode = "1.3.3"
 bevy_ecs = { version = "0.14.1", default-features = false}
+asefile = { version = "0.3.8" }
+image = { version = "0.24.9", default-features = false, features = ["png"] }

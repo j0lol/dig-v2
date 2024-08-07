@@ -1,11 +1,14 @@
+use std::io::BufWriter;
 use std::sync::LazyLock;
 use app::App;
 use app::ScheduleLabel_::Startup;
+use asefile::AsepriteFile;
 use bevy_ecs::system::Commands;
 use entity::player::new_player;
 use entity::player::PlayerTag;
 use entity::tile_map::ChunkMap;
 use entity::EnitityPlugin;
+use image::codecs::png::PngEncoder;
 use macroquad::prelude::*;
 
 pub mod entity;
@@ -22,8 +25,17 @@ pub const SMOOTH_CAMERA: bool = false;
 pub const SAVE_TIMER: f32 = 10.0;
 
 static TILE_SET: LazyLock<Texture2D> = LazyLock::new(|| {
-     Texture2D::from_file_with_format(include_bytes!("../assets/tileset.png"), Some(ImageFormat::Png))
+    let ase = AsepriteFile::read(&include_bytes!("../assets/tileset.ase")[..]).unwrap();
+    let image = ase.frame(0).image();
+
+    // Complicated process of writing to an in-mem buf
+    let mut c = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut c, image::ImageFormat::Png).unwrap();
+    let buf = &c.into_inner()[..];
+
+    Texture2D::from_file_with_format(buf, Some(ImageFormat::Png))
 });
+
 static DEFAULT_FONT: LazyLock<Font> = LazyLock::new(|| {
     let mut font =  load_ttf_font_from_bytes(include_bytes!("../assets/m5x7.ttf")).unwrap();
     font.set_filter(FilterMode::Nearest);

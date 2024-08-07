@@ -59,9 +59,11 @@ mod tile_id {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
     pub enum TileId {
         #[default]
-        Air,
-        Dirt,
-        WoodPlanks
+        Air = 0,
+        Dirt = 1,
+        WoodPlanks = 2,
+        WoodLog = 3,
+        GenericOre = 4,
     }
     
     impl TileId {
@@ -82,11 +84,23 @@ mod tile_id {
                     physicality: Solid,
                     sprite: Some(9)
                 },
+                GenericOre => &T {
+                    breakable: WithTime(2.0),
+                    name: "Ore",
+                    physicality: Solid,
+                    sprite: Some(32)
+                },
                 WoodPlanks => &T {
                     breakable: WithTime(2.0),
                     name: "Wood",
                     physicality: Solid,
                     sprite: Some(33)
+                },
+                WoodLog => &T {
+                    breakable: WithTime(2.5),
+                    name: "Wood Log",
+                    physicality: Solid,
+                    sprite: Some(34)
                 }
             }
         }

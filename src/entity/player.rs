@@ -50,17 +50,6 @@ pub struct Player {
     pub inventory: Box<[TileId; 4]>
 }
 
-// pub struct PlayerPlugin;
-
-// impl Plugin for PlayerPlugin {
-//     fn build(&self, app: &mut crate::app::App) {
-//         app.add_systems(
-//             Update, (draw_player, move_player, hello_player))
-//         ;
-//     }
-// }
-
-
 pub fn new_player(chunk_map: &mut ChunkMap) -> (Player, Collider, crate::physics2::Actor) {
     let position = vec2(VIRTUAL_WIDTH/2., VIRTUAL_HEIGHT/2.);
 
@@ -72,7 +61,7 @@ pub fn new_player(chunk_map: &mut ChunkMap) -> (Player, Collider, crate::physics
             facing: Facing::Forward,
             jumping: Jumping::Not,
             selected_item: 0,
-            inventory: Box::new([TileId::Dirt, TileId::WoodPlanks, TileId::Dirt, TileId::WoodPlanks])
+            inventory: Box::new([TileId::Dirt, TileId::WoodPlanks, TileId::WoodLog, TileId::GenericOre])
         },
         collider,
         actor
