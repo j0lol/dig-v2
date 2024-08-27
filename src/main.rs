@@ -7,7 +7,7 @@ use bevy_ecs::system::Commands;
 use entity::player::new_player;
 use entity::player::PlayerTag;
 use entity::tile_map::ChunkMap;
-use entity::EnitityPlugin;
+use entity::EntityPlugin;
 use image::codecs::png::PngEncoder;
 use macroquad::prelude::*;
 
@@ -61,7 +61,7 @@ async fn main() {
     app
         .add_systems(Startup, init_entities)
         // .add_plugin(physics2::PhysicsPlugin)
-        .add_plugin(EnitityPlugin);
+        .add_plugin(EntityPlugin);
 
     app.run().await;
     

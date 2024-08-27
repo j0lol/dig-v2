@@ -23,12 +23,14 @@ pub mod camera;
 pub mod ui;
 pub mod cursor;
 
-pub struct EnitityPlugin;
+pub struct EntityPlugin;
 
-impl Plugin for EnitityPlugin {
+impl Plugin for EntityPlugin {
     fn build(&self, app: &mut crate::app::App) {
         app
-            .add_systems(Startup, (init_camera, init_map, init_cursor, init_ui))
+            .add_systems(Startup, (
+                init_camera, init_map, init_cursor, init_ui)
+            )
             .add_systems(Update, (
                 (timed_save, update_cursor),
                 (draw_map, draw_cursor, draw_ui).chain(),
